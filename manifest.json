@@ -1,12 +1,8 @@
 {
-  "polymod": {
-    "name": "Route Recorder 0.1.0",
-    "id": "route_recorder_0.1.0",
-    "author": "The Light",
-    "targets": [
-      "0.6.2"
-    ],
+  "name": "Route Recorder",
+  "author": "Yuhang",
+  "id": "route-recorder",
+  "latest": {
     "0.6.2": "0.1.0"
-  },
-  "dependencies": []
+  }
 }
