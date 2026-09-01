@@ -1,12 +1,12 @@
 {
   "polymod": {
-    "name": "Route Recorder",
-    "id": "route_recorder",
-    "author": "Yuhang",
+    "name": "Route Recorder 0.1.0",
+    "id": "route_recorder_0.1.0",
+    "author": "The Light",
     "targets": [
       "0.6.2"
     ],
-    "main": "main.mod.js"
+    "0.6.2": "0.1.0"
   },
   "dependencies": []
 }
