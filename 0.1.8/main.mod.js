@@ -20,7 +20,7 @@ const state = {
 };
 
 function addPoint(position) {
-  if (!position || !state.recording) return;
+  if (!state.recording || !position) return;
 
   const last = state.points[state.points.length - 1];
 
@@ -128,9 +128,6 @@ class RouteRecorder extends PolyMod {
 
     /*
      * EDITOR
-     *
-     * Everything for chunk 112 is kept
-     * inside ONE chunk mixin.
      */
     pml.registerChunkMixin("112.bundle.js", {
       type: MixinType.INSERT,
@@ -147,7 +144,6 @@ class RouteRecorder extends PolyMod {
               document.createElement("button");
 
             button.className = "button";
-
             button.textContent =
               "Recording " +
               rr.points.length;
@@ -167,7 +163,6 @@ class RouteRecorder extends PolyMod {
             );
 
             rr.button = button;
-
             k.appendChild(button);
           }
 
@@ -184,37 +179,33 @@ class RouteRecorder extends PolyMod {
                 values.find(
                   v =>
                     v?.prototype?.isVector3
-                ) ||
-                rr.Vector3;
+                ) || rr.Vector3;
 
               rr.BufferGeometry =
                 values.find(
                   v =>
                     v?.prototype
                       ?.isBufferGeometry
-                ) ||
-                rr.BufferGeometry;
+                ) || rr.BufferGeometry;
 
               rr.Line =
                 values.find(
                   v =>
                     v?.prototype?.isLine
-                ) ||
-                rr.Line;
+                ) || rr.Line;
 
               rr.LineBasicMaterial =
                 values.find(
                   v =>
                     v?.prototype
                       ?.isLineBasicMaterial
-                ) ||
-                rr.LineBasicMaterial;
+                ) || rr.LineBasicMaterial;
             }
           } catch (_) {}
 
           if (
-            rr.points.length >= 2 &&
-            !rr.recording
+            !rr.recording &&
+            rr.points.length >= 2
           ) {
             rr.drawRoute();
           }
@@ -225,44 +216,42 @@ class RouteRecorder extends PolyMod {
     /*
      * CAR STATE
      *
-     * This is the important fix from 0.1.7.
+     * Temporarily use the global mixin again.
+     * This should initialize without the class
+     * lookup that caused 0.1.8 to fail.
      */
-    pml.registerClassMixin(
-      "A.prototype",
-      "setCarState",
-      {
-        type: MixinType.INSERT,
+    pml.registerGlobalMixin({
+      type: MixinType.INSERT,
 
-        token:
-          '(0, l.GG)(this, te, e, "f");',
+      token:
+        '(0, l.GG)(this, te, e, "f");',
 
-        func: `
-          {
-            const rr =
-              globalThis.__routeRecorder;
+      func: `
+        {
+          const rr =
+            globalThis.__routeRecorder;
+
+          if (
+            rr &&
+            rr.recording &&
+            e &&
+            e.position
+          ) {
+            if (rr.carOwner === null) {
+              rr.carOwner = this;
+            }
 
             if (
-              rr &&
-              rr.recording &&
-              e &&
-              e.position
+              rr.carOwner === this
             ) {
-              if (rr.carOwner === null) {
-                rr.carOwner = this;
-              }
-
-              if (
-                rr.carOwner === this
-              ) {
-                rr.addPoint(
-                  e.position
-                );
-              }
+              rr.addPoint(
+                e.position
+              );
             }
           }
-        `,
-      }
-    );
+        }
+      `,
+    });
   };
 }
 
