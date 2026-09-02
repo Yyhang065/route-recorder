@@ -4,15 +4,15 @@ A PolyTrack 0.6.2 PolyMod that records the path your car takes during the next e
 
 ## Features
 
-- `Record Next Run` button beside the editor Help button
+- `Record` button beside the editor Help button
 - Recording enabled by default
-- Toggle recording before a test
+- Toggle recording before a test run in Editor
 - Records the car's 3D position
-- Displays the route after the test
+- Displays the route after the test as a 3d Cyan line
 
 ## Current Version
 
-0.1.5
+0.1.7
 
 ## Version History
 
