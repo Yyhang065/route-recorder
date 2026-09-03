@@ -58,7 +58,11 @@ const recorder = {
 
     this.updateButton();
 
-    console.log("[Route Recorder] Recording stopped");
+    console.log(
+      "[Route Recorder] Recording stopped:",
+      this.points.length,
+      "points"
+    );
   },
 
   addPoint(position) {
@@ -101,18 +105,18 @@ const recorder = {
 
   drawRoute() {
     console.log(
-      "[Route Recorder] Attempting to draw",
+      "[Route Recorder] Drawing",
       this.points.length,
       "points"
     );
 
     if (!this.scene) {
-      console.warn("[Route Recorder] No editor scene");
+      console.warn("[Route Recorder] No scene");
       return;
     }
 
     if (this.points.length < 2) {
-      console.warn("[Route Recorder] Need at least 2 points");
+      console.warn("[Route Recorder] Not enough points");
       return;
     }
 
@@ -123,15 +127,16 @@ const recorder = {
       !this.LineBasicMaterial
     ) {
       console.error(
-        "[Route Recorder] Three.js constructors unavailable"
+        "[Route Recorder] Three.js unavailable"
       );
       return;
     }
 
-    try {
-      this.clearLine();
+    this.clearLine();
 
-      const geometry = new this.BufferGeometry();
+    try {
+      const geometry =
+        new this.BufferGeometry();
 
       geometry.setFromPoints(
         this.points.map(
@@ -161,9 +166,7 @@ const recorder = {
       this.scene.add(this.line);
 
       console.log(
-        "[Route Recorder] ROUTE DRAWN:",
-        this.points.length,
-        "points"
+        "[Route Recorder] ROUTE DRAWN"
       );
     } catch (error) {
       console.error(
@@ -178,8 +181,12 @@ globalThis.__routeRecorder = recorder;
 
 class RouteRecorder extends PolyMod {
   init = (pml) => {
+    /*
+     * EDITOR BUTTON
+     */
     pml.registerChunkMixin("112", {
       type: MixinType.INSERT,
+
       token: "k.appendChild(C));",
 
       func: `
@@ -187,27 +194,26 @@ class RouteRecorder extends PolyMod {
           const rr =
             globalThis.__routeRecorder;
 
-          try {
-            rr.scene = n.scene;
-          } catch (error) {
-            console.warn(
-              "[Route Recorder] Scene unavailable",
-              error
-            );
-          }
+          rr.scene = n.scene;
 
+          /*
+           * Get Three.js constructors.
+           */
           try {
             rr.Vector3 = w.Pq0;
             rr.BufferGeometry = w.LoY;
             rr.Line = w.N1A;
             rr.LineBasicMaterial = w.mrM;
           } catch (error) {
-            console.warn(
-              "[Route Recorder] Three.js unavailable",
+            console.error(
+              "[Route Recorder] Three.js error:",
               error
             );
           }
 
+          /*
+           * Create button.
+           */
           if (!rr.button) {
             const button =
               document.createElement("button");
@@ -218,46 +224,36 @@ class RouteRecorder extends PolyMod {
             button.addEventListener(
               "click",
               () => {
+                /*
+                 * First click:
+                 * stop recording and draw line.
+                 */
                 if (rr.recording) {
                   rr.stop();
+                  rr.scene = n.scene;
+                  rr.drawRoute();
                   return;
                 }
 
-                rr.scene = n.scene;
-                rr.drawRoute();
+                /*
+                 * Second click:
+                 * start a new recording.
+                 */
+                rr.start();
               }
             );
 
             k.appendChild(button);
+
             rr.updateButton();
-          }
-
-          if (!this.__routeRecorderPatched) {
-            this.__routeRecorderPatched = true;
-
-            const originalEnable =
-              this.enable;
-
-            this.enable = function (...args) {
-              rr.scene = n.scene;
-
-              if (rr.recording) {
-                rr.recording = false;
-                rr.carOwner = null;
-                rr.updateButton();
-                rr.drawRoute();
-              }
-
-              return originalEnable.apply(
-                this,
-                args
-              );
-            };
           }
         }
       `,
     });
 
+    /*
+     * CAR POSITION RECORDING
+     */
     pml.registerGlobalMixin({
       type: MixinType.INSERT,
 
@@ -279,8 +275,12 @@ class RouteRecorder extends PolyMod {
                 rr.carOwner = this;
               }
 
-              if (rr.carOwner === this) {
-                rr.addPoint(e.position);
+              if (
+                rr.carOwner === this
+              ) {
+                rr.addPoint(
+                  e.position
+                );
               }
             }
           } catch (error) {
