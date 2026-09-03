@@ -3,215 +3,291 @@ import {
   MixinType,
 } from "https://cdn.polymodloader.com/cb/PolyTrackMods/PolyModLoader/0.6.2/PolyTypes.js";
 
-const state = {
-  recording: false,
+const recorder = {
+  recording: true,
   points: [],
   carOwner: null,
 
   scene: null,
+  line: null,
+
   Vector3: null,
   BufferGeometry: null,
-  LineBasicMaterial: null,
   Line: null,
+  LineBasicMaterial: null,
 
   button: null,
-  editor: null,
+
+  updateButton() {
+    if (!this.button) return;
+
+    const icon =
+      "data:image/svg+xml;charset=utf-8," +
+      encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">' +
+          '<circle cx="12" cy="12" r="8" fill="none" stroke="white" stroke-width="2.5"/>' +
+          '<circle cx="12" cy="12" r="4" fill="white"/>' +
+        "</svg>"
+      );
+
+    const text = this.recording
+      ? "Recording " + this.points.length
+      : "Show Route " + this.points.length;
+
+    this.button.innerHTML =
+      '<img class="button-icon" src="' +
+      icon +
+      '"> ' +
+      text;
+  },
+
+  start() {
+    this.recording = true;
+    this.points = [];
+    this.carOwner = null;
+
+    this.clearLine();
+    this.updateButton();
+
+    console.log("[Route Recorder] Recording started");
+  },
+
+  stop() {
+    this.recording = false;
+    this.carOwner = null;
+
+    this.updateButton();
+
+    console.log("[Route Recorder] Recording stopped");
+  },
+
+  addPoint(position) {
+    if (!position) return;
+
+    const last = this.points[this.points.length - 1];
+
+    if (
+      !last ||
+      Math.pow(position.x - last.x, 2) +
+        Math.pow(position.y - last.y, 2) +
+        Math.pow(position.z - last.z, 2) >
+        0.0025
+    ) {
+      this.points.push({
+        x: position.x,
+        y: position.y,
+        z: position.z,
+      });
+
+      this.updateButton();
+    }
+  },
+
+  clearLine() {
+    if (this.line && this.scene) {
+      this.scene.remove(this.line);
+
+      if (this.line.geometry) {
+        this.line.geometry.dispose();
+      }
+
+      if (this.line.material) {
+        this.line.material.dispose();
+      }
+    }
+
+    this.line = null;
+  },
+
+  drawRoute() {
+    console.log(
+      "[Route Recorder] Attempting to draw",
+      this.points.length,
+      "points"
+    );
+
+    if (!this.scene) {
+      console.warn("[Route Recorder] No editor scene");
+      return;
+    }
+
+    if (this.points.length < 2) {
+      console.warn("[Route Recorder] Need at least 2 points");
+      return;
+    }
+
+    if (
+      !this.Vector3 ||
+      !this.BufferGeometry ||
+      !this.Line ||
+      !this.LineBasicMaterial
+    ) {
+      console.error(
+        "[Route Recorder] Three.js constructors unavailable"
+      );
+      return;
+    }
+
+    try {
+      this.clearLine();
+
+      const geometry = new this.BufferGeometry();
+
+      geometry.setFromPoints(
+        this.points.map(
+          (p) =>
+            new this.Vector3(
+              p.x,
+              p.y,
+              p.z
+            )
+        )
+      );
+
+      const material =
+        new this.LineBasicMaterial({
+          color: 0x00bfff,
+          depthTest: false,
+          depthWrite: false,
+        });
+
+      this.line = new this.Line(
+        geometry,
+        material
+      );
+
+      this.line.renderOrder = 9999;
+
+      this.scene.add(this.line);
+
+      console.log(
+        "[Route Recorder] ROUTE DRAWN:",
+        this.points.length,
+        "points"
+      );
+    } catch (error) {
+      console.error(
+        "[Route Recorder] Draw error:",
+        error
+      );
+    }
+  },
 };
 
-function clearRoute() {
-  state.points.length = 0;
-
-  if (state.line && state.scene) {
-    state.scene.remove(state.line);
-    state.line.geometry?.dispose();
-    state.line.material?.dispose();
-  }
-
-  state.line = null;
-}
-
-function addPoint(position) {
-  if (!position) return;
-
-  const last = state.points[state.points.length - 1];
-
-  // Don't add hundreds of practically identical points.
-  if (
-    last &&
-    (position.x - last.x) ** 2 +
-      (position.y - last.y) ** 2 +
-      (position.z - last.z) ** 2 <
-      0.0025
-  ) {
-    return;
-  }
-
-  state.points.push({
-    x: position.x,
-    y: position.y,
-    z: position.z,
-  });
-
-  if (state.button) {
-    state.button.textContent = `Recording ${state.points.length}`;
-  }
-}
-
-function drawRoute() {
-  if (
-    !state.scene ||
-    !state.Vector3 ||
-    !state.BufferGeometry ||
-    !state.LineBasicMaterial ||
-    !state.Line ||
-    state.points.length < 2
-  ) {
-    return;
-  }
-
-  if (state.line) {
-    state.scene.remove(state.line);
-    state.line.geometry?.dispose();
-    state.line.material?.dispose();
-    state.line = null;
-  }
-
-  const geometry = new state.BufferGeometry().setFromPoints(
-    state.points.map(
-      (p) => new state.Vector3(p.x, p.y, p.z)
-    )
-  );
-
-  const material = new state.LineBasicMaterial({
-    color: 0x00bfff,
-    depthTest: false,
-    depthWrite: false,
-  });
-
-  const line = new state.Line(geometry, material);
-
-  line.renderOrder = 9999;
-
-  state.line = line;
-  state.scene.add(line);
-}
-
-function startRecording() {
-  clearRoute();
-
-  state.recording = true;
-  state.carOwner = null;
-
-  if (state.button) {
-    state.button.textContent = "Recording 0";
-  }
-
-  console.log("[Route Recorder] Recording started");
-}
-
-function finishRecording() {
-  if (!state.recording) return;
-
-  state.recording = false;
-  state.carOwner = null;
-
-  if (state.button) {
-    state.button.textContent =
-      state.points.length > 0
-        ? `Show Route ${state.points.length}`
-        : "Record Next Run";
-  }
-
-  drawRoute();
-
-  console.log(
-    `[Route Recorder] Recording finished: ${state.points.length} points`
-  );
-}
-
-function toggleRecording() {
-  if (state.recording) {
-    finishRecording();
-  } else {
-    startRecording();
-  }
-}
-
-function discoverThree(values) {
-  if (!Array.isArray(values)) return;
-
-  state.Vector3 =
-    values.find((v) => v?.prototype?.isVector3) ||
-    state.Vector3;
-
-  state.BufferGeometry =
-    values.find((v) => v?.prototype?.isBufferGeometry) ||
-    state.BufferGeometry;
-
-  state.LineBasicMaterial =
-    values.find((v) => v?.prototype?.isLineBasicMaterial) ||
-    state.LineBasicMaterial;
-
-  state.Line =
-    values.find((v) => v?.prototype?.isLine) ||
-    state.Line;
-}
+globalThis.__routeRecorder = recorder;
 
 class RouteRecorder extends PolyMod {
   init = (pml) => {
-    /*
-     * Editor setup
-     */
     pml.registerChunkMixin("112", {
       type: MixinType.INSERT,
       token: "k.appendChild(C));",
+
       func: `
         {
-          const rr = globalThis.__routeRecorder;
-
-          rr.scene = n.scene;
+          const rr =
+            globalThis.__routeRecorder;
 
           try {
-            if (typeof w !== "undefined") {
-              rr.discoverThree(Object.values(w));
-            }
-          } catch (_) {}
-
-          if (!rr.button && typeof k?.appendChild === "function") {
-            const button = document.createElement("button");
-
-            button.className = "button";
-            button.textContent = "Record Next Run";
-            button.title =
-              "Record the car path during the next test run";
-
-            button.addEventListener("click", () => {
-              rr.toggleRecording();
-            });
-
-            rr.button = button;
-            rr.editor = this;
-
-            k.appendChild(button);
+            rr.scene = n.scene;
+          } catch (error) {
+            console.warn(
+              "[Route Recorder] Scene unavailable",
+              error
+            );
           }
 
-          console.log("[Route Recorder] Editor initialized");
+          try {
+            rr.Vector3 = w.Pq0;
+            rr.BufferGeometry = w.LoY;
+            rr.Line = w.N1A;
+            rr.LineBasicMaterial = w.mrM;
+          } catch (error) {
+            console.warn(
+              "[Route Recorder] Three.js unavailable",
+              error
+            );
+          }
+
+          if (!rr.button) {
+            const button =
+              document.createElement("button");
+
+            button.className = "button";
+            rr.button = button;
+
+            button.addEventListener(
+              "click",
+              () => {
+                if (rr.recording) {
+                  rr.stop();
+                  return;
+                }
+
+                rr.scene = n.scene;
+                rr.drawRoute();
+              }
+            );
+
+            k.appendChild(button);
+            rr.updateButton();
+          }
+
+          if (!this.__routeRecorderPatched) {
+            this.__routeRecorderPatched = true;
+
+            const originalEnable =
+              this.enable;
+
+            this.enable = function (...args) {
+              rr.scene = n.scene;
+
+              if (rr.recording) {
+                rr.recording = false;
+                rr.carOwner = null;
+                rr.updateButton();
+                rr.drawRoute();
+              }
+
+              return originalEnable.apply(
+                this,
+                args
+              );
+            };
+          }
         }
       `,
     });
 
-    /*
-     * When the editor is enabled again, finish the recording.
-     */
-    pml.registerChunkMixin("112", {
+    pml.registerGlobalMixin({
       type: MixinType.INSERT,
-      token: "enable() {",
+
+      token: '(0, l.GG)(this, te, e, "f");',
+
       func: `
         {
-          const rr = globalThis.__routeRecorder;
+          try {
+            const rr =
+              globalThis.__routeRecorder;
 
-          if (rr.recording) {
-            rr.finishRecording();
+            if (
+              rr &&
+              rr.recording &&
+              e &&
+              e.position
+            ) {
+              if (rr.carOwner === null) {
+                rr.carOwner = this;
+              }
+
+              if (rr.carOwner === this) {
+                rr.addPoint(e.position);
+              }
+            }
+          } catch (error) {
+            console.error(
+              "[Route Recorder] Recording error:",
+              error
+            );
           }
         }
       `,
@@ -219,17 +295,5 @@ class RouteRecorder extends PolyMod {
   };
 }
 
-/*
- * Make the mod accessible from the game bundle.
- */
-globalThis.__routeRecorder = state;
-
-state.addPoint = addPoint;
-state.clearRoute = clearRoute;
-state.drawRoute = drawRoute;
-state.startRecording = startRecording;
-state.finishRecording = finishRecording;
-state.toggleRecording = toggleRecording;
-state.discoverThree = discoverThree;
-
-export let polyMod = new RouteRecorder();
+export let polyMod =
+  new RouteRecorder();
