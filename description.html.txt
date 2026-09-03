@@ -1,0 +1,9 @@
+<h2>Route Recorder</h2>
+<p>Records the path your car takes during the next PolyTrack editor test run and displays the recorded 3D route when you return to the editor.</p>
+<ul>
+<li>Recording is enabled by default.</li>
+<li>Toggle <strong>Record Next Run</strong> before testing.</li>
+<li>Records the car's 3D position from the 0.6.2 simulation state.</li>
+<li>Displays the finished route directly in the editor.</li>
+</ul>
+<p>Made for PolyTrack 0.6.2.</p>
