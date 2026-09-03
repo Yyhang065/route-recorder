@@ -7,21 +7,16 @@ class RouteRecorder extends PolyMod {
   init = (pml) => {
     pml.registerChunkMixin("112", {
       type: MixinType.INSERT,
-
       token: "k.appendChild(C));",
-
       func: `
         {
           const button = document.createElement("button");
-
           button.className = "button";
 
           let enabled = true;
 
           const updateButton = () => {
-            button.textContent = enabled
-              ? "Enabled"
-              : "Disabled";
+            button.textContent = enabled ? "Enabled" : "Disabled";
           };
 
           button.addEventListener("click", () => {
@@ -35,12 +30,9 @@ class RouteRecorder extends PolyMod {
           });
 
           k.appendChild(button);
-
           updateButton();
 
-          console.log(
-            "[Route Recorder] BUTTON CREATED"
-          );
+          console.log("[Route Recorder] BUTTON CREATED");
         }
       `,
     });
