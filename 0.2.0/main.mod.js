@@ -116,7 +116,9 @@ const recorder = {
     }
 
     if (this.points.length < 2) {
-      console.warn("[Route Recorder] Not enough points");
+      console.warn(
+        "[Route Recorder] Not enough points"
+      );
       return;
     }
 
@@ -132,9 +134,9 @@ const recorder = {
       return;
     }
 
-    this.clearLine();
-
     try {
+      this.clearLine();
+
       const geometry =
         new this.BufferGeometry();
 
@@ -166,7 +168,9 @@ const recorder = {
       this.scene.add(this.line);
 
       console.log(
-        "[Route Recorder] ROUTE DRAWN"
+        "[Route Recorder] ROUTE DRAWN:",
+        this.points.length,
+        "points"
       );
     } catch (error) {
       console.error(
@@ -194,7 +198,17 @@ class RouteRecorder extends PolyMod {
           const rr =
             globalThis.__routeRecorder;
 
-          rr.scene = n.scene;
+          /*
+           * Get the editor scene safely.
+           */
+          try {
+            rr.scene = n.scene;
+          } catch (error) {
+            console.warn(
+              "[Route Recorder] Scene unavailable",
+              error
+            );
+          }
 
           /*
            * Get Three.js constructors.
@@ -205,14 +219,14 @@ class RouteRecorder extends PolyMod {
             rr.Line = w.N1A;
             rr.LineBasicMaterial = w.mrM;
           } catch (error) {
-            console.error(
-              "[Route Recorder] Three.js error:",
+            console.warn(
+              "[Route Recorder] Three.js unavailable",
               error
             );
           }
 
           /*
-           * Create button.
+           * Create the button.
            */
           if (!rr.button) {
             const button =
@@ -225,19 +239,27 @@ class RouteRecorder extends PolyMod {
               "click",
               () => {
                 /*
-                 * First click:
-                 * stop recording and draw line.
+                 * Stop recording and show
+                 * the recorded route.
                  */
                 if (rr.recording) {
                   rr.stop();
-                  rr.scene = n.scene;
+
+                  try {
+                    rr.scene = n.scene;
+                  } catch (error) {
+                    console.warn(
+                      "[Route Recorder] Scene unavailable",
+                      error
+                    );
+                  }
+
                   rr.drawRoute();
                   return;
                 }
 
                 /*
-                 * Second click:
-                 * start a new recording.
+                 * Start a new recording.
                  */
                 rr.start();
               }
@@ -246,6 +268,10 @@ class RouteRecorder extends PolyMod {
             k.appendChild(button);
 
             rr.updateButton();
+
+            console.log(
+              "[Route Recorder] BUTTON CREATED"
+            );
           }
         }
       `,
