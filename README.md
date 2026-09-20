@@ -1,29 +1,28 @@
-# Route Recorder
+# The Light's Route Recorder
 
-A PolyTrack 0.6.2 PolyMod that records the path your car takes during the next editor test run.
+A PolyTrack mod by **The Light**.
 
 ## Features
 
-- `Record` button beside the editor Help button
-- Recording enabled by default
-- Toggle recording before a test run in Editor
-- Records the car's 3D position
-- Displays the route after the test as a 3d Cyan line
+- Records your car's route during an editor test drive.
+- Displays the recorded route directly in the editor.
+- Uses the car's position and rotation to accurately recreate its movement.
+- Records the route based on distance travelled rather than every frame.
+- Displays the route using the car's collision shape.
+- Toggle recording directly from the editor.
 
-## Current Version
+## Supported Versions
 
-0.1.7
+- PolyTrack 0.6.2
+- PolyTrack 0.6.3
 
-## Version History
+## PolyModLoader
 
-* **0.1.1** — Initial prototype
-* **0.1.2** — Fixed mod packaging/loading
-* **0.1.3** — Tested editor button injection
-* **0.1.4** — Added proper recorder button
-* **0.1.5** — Added route recording system
-* **0.1.6** — Improved run/exit handling
-* **0.1.7** — Added point-count debugging & Show Route button
+Built for PolyModLoader 0.6.2.
 
-## Target
+## Installation
 
-PolyTrack 0.6.2
+Add the following CDN to PolyModLoader:
+
+```text
+https://cdn.polymodloader.com/gh/Yyhang065/route-recorder/main
