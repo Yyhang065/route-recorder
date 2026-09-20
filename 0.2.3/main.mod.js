@@ -10,14 +10,21 @@ class RouteRecorder extends PolyMod {
       token: "G.appendChild(C));",
       func: `
         {
-          const routeRecorderButton = document.createElement("button");
+          const test = document.createElement("div");
 
-          routeRecorderButton.className = "button";
-          routeRecorderButton.textContent = "Route Recorder";
+          test.textContent = "ROUTE RECORDER MIXIN HIT";
+          test.style.position = "fixed";
+          test.style.top = "20px";
+          test.style.left = "20px";
+          test.style.zIndex = "999999";
+          test.style.background = "red";
+          test.style.color = "white";
+          test.style.padding = "10px";
+          test.style.fontSize = "20px";
 
-          G.appendChild(routeRecorderButton);
+          document.body.appendChild(test);
 
-          console.log("[Route Recorder] BUTTON CREATED");
+          console.log("[Route Recorder] MIXIN HIT");
         }
       `,
     });
