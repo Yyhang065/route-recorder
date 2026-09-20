@@ -1,7 +1,7 @@
 {
-    "targets": [
-        "0.6.3"
-    ],
-    "dependencies": [],
-    "main": "main.mod.js"
+  "targets": [
+    "0.6.3"
+  ],
+  "dependencies": [],
+  "main": "main.mod.js"
 }
