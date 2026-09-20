@@ -1,4 +1,3 @@
-```js
 import {
   PolyMod,
   MixinType,
@@ -16,16 +15,8 @@ globalThis.__routeRecorder = recorder;
 
 class RouteRecorder extends PolyMod {
   init = (pml) => {
-
-    /*
-     * ------------------------------------------------------------
-     * EDITOR BUTTON
-     * ------------------------------------------------------------
-     */
-
     pml.registerChunkMixin("112", {
       type: MixinType.INSERT,
-
       token: "G.appendChild(C));",
 
       func: `
@@ -81,18 +72,8 @@ class RouteRecorder extends PolyMod {
       `,
     });
 
-    /*
-     * ------------------------------------------------------------
-     * CAR STATE HOOK
-     *
-     * 0.6.3 still uses the car-state setter.
-     * We only collect position data here.
-     * ------------------------------------------------------------
-     */
-
     pml.registerGlobalMixin({
       type: MixinType.INSERT,
-
       token: '(0, l.GG)(this, te, e, "f");',
 
       func: `
@@ -108,25 +89,16 @@ class RouteRecorder extends PolyMod {
             ) {
               const p = e.position;
 
-              /*
-               * Find the first car we see.
-               * This is deliberately kept simple for the first
-               * CWC-style trail implementation.
-               */
-
               if (rr.car === null) {
                 rr.car = this;
               }
 
               if (rr.car === this) {
-
                 const x = p.x;
                 const y = p.y;
                 const z = p.z;
 
-                if (
-                  rr.lastPosition === null
-                ) {
+                if (rr.lastPosition === null) {
                   rr.lastPosition = {
                     x,
                     y,
@@ -139,7 +111,6 @@ class RouteRecorder extends PolyMod {
                     z,
                   });
                 } else {
-
                   const dx =
                     x - rr.lastPosition.x;
 
@@ -156,15 +127,9 @@ class RouteRecorder extends PolyMod {
                       dz * dz
                     );
 
-                  /*
-                   * CWC-style spacing:
-                   * don't save every simulation frame.
-                   */
-
                   const spacing = 0.5;
 
                   if (distance >= spacing) {
-
                     rr.samples.push({
                       x,
                       y,
@@ -198,36 +163,6 @@ class RouteRecorder extends PolyMod {
       `,
     });
 
-    /*
-     * ------------------------------------------------------------
-     * TESTING HELPERS
-     * ------------------------------------------------------------
-     *
-     * These let us inspect whether the game is actually feeding
-     * us car positions before we attempt the full hitbox trail.
-     */
-
-    globalThis.__routeRecorderStart = () => {
-      recorder.recording = true;
-      recorder.samples = [];
-      recorder.lastPosition = null;
-      recorder.car = null;
-
-      console.log(
-        "[Route Recorder] Recording started"
-      );
-    };
-
-    globalThis.__routeRecorderStop = () => {
-      recorder.recording = false;
-
-      console.log(
-        "[Route Recorder] Recording stopped:",
-        recorder.samples.length,
-        "samples"
-      );
-    };
-
     console.log(
       "[Route Recorder] 0.6.3 initialized"
     );
@@ -235,4 +170,3 @@ class RouteRecorder extends PolyMod {
 }
 
 export let polyMod = new RouteRecorder();
-```
