@@ -1,18 +1,18 @@
 import {
   PolyMod,
   MixinType,
-} from "https://cdn.polymodloader.com/cb/PolyTrackMods/PolyModLoader/0.6.2/PolyTypes.js";
+} from "https://cdn.polymodloader.com/cb/PolyTrackMods/PolyModLoader/0.6.3/PolyTypes.js";
 
 class RouteRecorder extends PolyMod {
   init = (pml) => {
     pml.registerChunkMixin("112", {
       type: MixinType.INSERT,
 
-      token: "k.appendChild(C));",
+      token: "G.appendChild(C));",
 
       func: `
         {
-          console.log("[Route Recorder] MIXIN HIT");
+          console.log("[Route Recorder] 0.6.3 EDITOR MIXIN HIT");
 
           const button = document.createElement("button");
 
@@ -39,6 +39,7 @@ class RouteRecorder extends PolyMod {
 
           button.addEventListener("click", () => {
             enabled = !enabled;
+
             updateButton();
 
             console.log(
@@ -47,11 +48,13 @@ class RouteRecorder extends PolyMod {
             );
           });
 
-          k.appendChild(button);
+          G.appendChild(button);
 
           updateButton();
 
-          console.log("[Route Recorder] BUTTON CREATED");
+          console.log(
+            "[Route Recorder] 0.6.3 BUTTON CREATED"
+          );
         }
       `,
     });
