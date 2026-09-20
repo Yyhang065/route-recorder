@@ -1,8 +1,8 @@
 {
-    "name": "The Light's Route Recorder",
-    "author": "The Light",
-    "id": "route-recorder",
-    "latest": {
-        "0.6.3": "0.2.3"
-    }
+  "name": "The Light's Route Recorder",
+  "author": "The Light",
+  "id": "route-recorder",
+  "latest": {
+    "0.6.3": "0.2.3"
+  }
 }
