@@ -1,4 +1,3 @@
-```js
 import {
   PolyMod,
   MixinType,
@@ -15,13 +14,6 @@ globalThis.__routeRecorder = recorder;
 
 class RouteRecorder extends PolyMod {
   init = (pml) => {
-
-    /*
-     * ============================================================
-     * EDITOR BUTTON
-     * ============================================================
-     */
-
     pml.registerChunkMixin("112", {
       type: MixinType.INSERT,
       token: "G.appendChild(C));",
@@ -77,20 +69,11 @@ class RouteRecorder extends PolyMod {
       `,
     });
 
-
-    /*
-     * ============================================================
-     * CWC-STYLE TRAIL RENDERER
-     * ============================================================
-     */
-
     globalThis.__routeRecorder.renderTrail = () => {
       const rr = globalThis.__routeRecorder;
 
       if (!rr.editor) {
-        console.log(
-          "[Route Recorder] No editor instance."
-        );
+        console.log("[Route Recorder] No editor instance.");
         return;
       }
 
@@ -106,8 +89,7 @@ class RouteRecorder extends PolyMod {
         return;
       }
 
-      const THREE =
-        globalThis.THREE;
+      const THREE = globalThis.THREE;
 
       if (!THREE) {
         console.log(
@@ -115,10 +97,6 @@ class RouteRecorder extends PolyMod {
         );
         return;
       }
-
-      /*
-       * Remove the previous trail.
-       */
 
       if (rr.trailGroup) {
         rr.trailGroup.traverse((object) => {
@@ -141,24 +119,15 @@ class RouteRecorder extends PolyMod {
         rr.trailGroup = null;
       }
 
-      /*
-       * Start with a simple car-shaped collision box.
-       *
-       * We will replace these vertices with the actual
-       * PolyTrack collision vertices once the 0.6.3 car
-       * model reference is exposed.
-       */
-
       const vertices = [
         [-0.75, -0.35, -1.35],
-        [ 0.75, -0.35, -1.35],
-        [ 0.75,  0.35, -1.35],
-        [-0.75,  0.35, -1.35],
-
-        [-0.75, -0.35,  1.35],
-        [ 0.75, -0.35,  1.35],
-        [ 0.75,  0.35,  1.35],
-        [-0.75,  0.35,  1.35],
+        [0.75, -0.35, -1.35],
+        [0.75, 0.35, -1.35],
+        [-0.75, 0.35, -1.35],
+        [-0.75, -0.35, 1.35],
+        [0.75, -0.35, 1.35],
+        [0.75, 0.35, 1.35],
+        [-0.75, 0.35, 1.35],
       ];
 
       const edges = [
@@ -166,12 +135,10 @@ class RouteRecorder extends PolyMod {
         [1, 2],
         [2, 3],
         [3, 0],
-
         [4, 5],
         [5, 6],
         [6, 7],
         [7, 4],
-
         [0, 4],
         [1, 5],
         [2, 6],
@@ -181,21 +148,15 @@ class RouteRecorder extends PolyMod {
       const linePositions = [];
       const tubePositions = [];
 
-      const transformVertex = (
-        vertex,
-        sample
-      ) => {
-        const vector =
-          new THREE.Vector3(
-            vertex[0],
-            vertex[1],
-            vertex[2]
-          );
+      const transformVertex = (vertex, sample) => {
+        const vector = new THREE.Vector3(
+          vertex[0],
+          vertex[1],
+          vertex[2]
+        );
 
         if (sample.quaternion) {
-          vector.applyQuaternion(
-            sample.quaternion
-          );
+          vector.applyQuaternion(sample.quaternion);
         }
 
         vector.add(
@@ -224,10 +185,7 @@ class RouteRecorder extends PolyMod {
 
         for (const vertex of vertices) {
           frame.push(
-            transformVertex(
-              vertex,
-              sample
-            )
+            transformVertex(vertex, sample)
           );
         }
 
@@ -242,7 +200,6 @@ class RouteRecorder extends PolyMod {
             frame[a].x,
             frame[a].y,
             frame[a].z,
-
             frame[b].x,
             frame[b].y,
             frame[b].z
@@ -253,8 +210,7 @@ class RouteRecorder extends PolyMod {
           continue;
         }
 
-        const next =
-          frames[i + 1];
+        const next = frames[i + 1];
 
         for (const [a, b] of edges) {
           tubePositions.push(
@@ -285,8 +241,7 @@ class RouteRecorder extends PolyMod {
         }
       }
 
-      const group =
-        new THREE.Group();
+      const group = new THREE.Group();
 
       const tubeGeometry =
         new THREE.BufferGeometry();
@@ -341,11 +296,6 @@ class RouteRecorder extends PolyMod {
         )
       );
 
-      /*
-       * The exact renderer/scene reference will be connected
-       * once the 0.6.3 editor instance is exposed.
-       */
-
       if (rr.editor.scene) {
         rr.editor.scene.add(group);
         rr.trailGroup = group;
@@ -358,19 +308,8 @@ class RouteRecorder extends PolyMod {
       );
     };
 
-
-    /*
-     * ============================================================
-     * TEMPORARY TEST API
-     * ============================================================
-     *
-     * These are deliberately global so we can verify the
-     * renderer independently of the 0.6.3 car hook.
-     */
-
     globalThis.__routeRecorder.testTrail = () => {
-      const rr =
-        globalThis.__routeRecorder;
+      const rr = globalThis.__routeRecorder;
 
       rr.samples = [];
 
@@ -391,13 +330,10 @@ class RouteRecorder extends PolyMod {
       rr.renderTrail();
     };
 
-
     console.log(
       "[Route Recorder] 0.6.3 initialized"
     );
   };
 }
 
-export let polyMod =
-  new RouteRecorder();
-```
+export let polyMod = new RouteRecorder();
