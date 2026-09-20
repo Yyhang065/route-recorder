@@ -1,3 +1,4 @@
+```js
 import {
   PolyMod,
   MixinType,
@@ -5,16 +6,22 @@ import {
 
 const recorder = {
   enabled: true,
-  recording: false,
   samples: [],
-  lastPosition: null,
-  car: null,
+  editor: null,
+  trailGroup: null,
 };
 
 globalThis.__routeRecorder = recorder;
 
 class RouteRecorder extends PolyMod {
   init = (pml) => {
+
+    /*
+     * ============================================================
+     * EDITOR BUTTON
+     * ============================================================
+     */
+
     pml.registerChunkMixin("112", {
       type: MixinType.INSERT,
       token: "G.appendChild(C));",
@@ -22,6 +29,8 @@ class RouteRecorder extends PolyMod {
       func: `
         {
           console.log("[Route Recorder] EDITOR MIXIN HIT");
+
+          globalThis.__routeRecorder.editor = this;
 
           const button = document.createElement("button");
 
@@ -49,11 +58,7 @@ class RouteRecorder extends PolyMod {
           button.addEventListener("click", () => {
             enabled = !enabled;
 
-            const rr = globalThis.__routeRecorder;
-
-            if (rr) {
-              rr.enabled = enabled;
-            }
+            globalThis.__routeRecorder.enabled = enabled;
 
             updateButton();
 
@@ -72,96 +77,320 @@ class RouteRecorder extends PolyMod {
       `,
     });
 
-    pml.registerGlobalMixin({
-      type: MixinType.INSERT,
-      token: '(0, l.GG)(this, te, e, "f");',
 
-      func: `
-        {
-          try {
-            const rr = globalThis.__routeRecorder;
+    /*
+     * ============================================================
+     * CWC-STYLE TRAIL RENDERER
+     * ============================================================
+     */
 
-            if (
-              rr &&
-              rr.enabled &&
-              e &&
-              e.position
-            ) {
-              const p = e.position;
+    globalThis.__routeRecorder.renderTrail = () => {
+      const rr = globalThis.__routeRecorder;
 
-              if (rr.car === null) {
-                rr.car = this;
-              }
+      if (!rr.editor) {
+        console.log(
+          "[Route Recorder] No editor instance."
+        );
+        return;
+      }
 
-              if (rr.car === this) {
-                const x = p.x;
-                const y = p.y;
-                const z = p.z;
+      if (!Array.isArray(rr.samples)) {
+        return;
+      }
 
-                if (rr.lastPosition === null) {
-                  rr.lastPosition = {
-                    x,
-                    y,
-                    z,
-                  };
+      if (rr.samples.length < 2) {
+        console.log(
+          "[Route Recorder] Not enough samples:",
+          rr.samples.length
+        );
+        return;
+      }
 
-                  rr.samples.push({
-                    x,
-                    y,
-                    z,
-                  });
-                } else {
-                  const dx =
-                    x - rr.lastPosition.x;
+      const THREE =
+        globalThis.THREE;
 
-                  const dy =
-                    y - rr.lastPosition.y;
+      if (!THREE) {
+        console.log(
+          "[Route Recorder] THREE is not globally available."
+        );
+        return;
+      }
 
-                  const dz =
-                    z - rr.lastPosition.z;
+      /*
+       * Remove the previous trail.
+       */
 
-                  const distance =
-                    Math.sqrt(
-                      dx * dx +
-                      dy * dy +
-                      dz * dz
-                    );
-
-                  const spacing = 0.5;
-
-                  if (distance >= spacing) {
-                    rr.samples.push({
-                      x,
-                      y,
-                      z,
-                    });
-
-                    rr.lastPosition = {
-                      x,
-                      y,
-                      z,
-                    };
-
-                    console.log(
-                      "[Route Recorder] Sample:",
-                      rr.samples.length,
-                      x,
-                      y,
-                      z
-                    );
-                  }
-                }
-              }
-            }
-          } catch (error) {
-            console.error(
-              "[Route Recorder] Recording error:",
-              error
-            );
+      if (rr.trailGroup) {
+        rr.trailGroup.traverse((object) => {
+          if (object.geometry) {
+            object.geometry.dispose();
           }
+
+          if (object.material) {
+            if (Array.isArray(object.material)) {
+              object.material.forEach((material) => {
+                material.dispose();
+              });
+            } else {
+              object.material.dispose();
+            }
+          }
+        });
+
+        rr.editor.scene?.remove(rr.trailGroup);
+        rr.trailGroup = null;
+      }
+
+      /*
+       * Start with a simple car-shaped collision box.
+       *
+       * We will replace these vertices with the actual
+       * PolyTrack collision vertices once the 0.6.3 car
+       * model reference is exposed.
+       */
+
+      const vertices = [
+        [-0.75, -0.35, -1.35],
+        [ 0.75, -0.35, -1.35],
+        [ 0.75,  0.35, -1.35],
+        [-0.75,  0.35, -1.35],
+
+        [-0.75, -0.35,  1.35],
+        [ 0.75, -0.35,  1.35],
+        [ 0.75,  0.35,  1.35],
+        [-0.75,  0.35,  1.35],
+      ];
+
+      const edges = [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 0],
+
+        [4, 5],
+        [5, 6],
+        [6, 7],
+        [7, 4],
+
+        [0, 4],
+        [1, 5],
+        [2, 6],
+        [3, 7],
+      ];
+
+      const linePositions = [];
+      const tubePositions = [];
+
+      const transformVertex = (
+        vertex,
+        sample
+      ) => {
+        const vector =
+          new THREE.Vector3(
+            vertex[0],
+            vertex[1],
+            vertex[2]
+          );
+
+        if (sample.quaternion) {
+          vector.applyQuaternion(
+            sample.quaternion
+          );
         }
-      `,
-    });
+
+        vector.add(
+          new THREE.Vector3(
+            sample.x,
+            sample.y,
+            sample.z
+          )
+        );
+
+        return vector;
+      };
+
+      const frames = [];
+
+      for (const sample of rr.samples) {
+        if (
+          typeof sample.x !== "number" ||
+          typeof sample.y !== "number" ||
+          typeof sample.z !== "number"
+        ) {
+          continue;
+        }
+
+        const frame = [];
+
+        for (const vertex of vertices) {
+          frame.push(
+            transformVertex(
+              vertex,
+              sample
+            )
+          );
+        }
+
+        frames.push(frame);
+      }
+
+      for (let i = 0; i < frames.length; i++) {
+        const frame = frames[i];
+
+        for (const [a, b] of edges) {
+          linePositions.push(
+            frame[a].x,
+            frame[a].y,
+            frame[a].z,
+
+            frame[b].x,
+            frame[b].y,
+            frame[b].z
+          );
+        }
+
+        if (i >= frames.length - 1) {
+          continue;
+        }
+
+        const next =
+          frames[i + 1];
+
+        for (const [a, b] of edges) {
+          tubePositions.push(
+            frame[a].x,
+            frame[a].y,
+            frame[a].z,
+
+            frame[b].x,
+            frame[b].y,
+            frame[b].z,
+
+            next[b].x,
+            next[b].y,
+            next[b].z,
+
+            frame[a].x,
+            frame[a].y,
+            frame[a].z,
+
+            next[b].x,
+            next[b].y,
+            next[b].z,
+
+            next[a].x,
+            next[a].y,
+            next[a].z
+          );
+        }
+      }
+
+      const group =
+        new THREE.Group();
+
+      const tubeGeometry =
+        new THREE.BufferGeometry();
+
+      tubeGeometry.setAttribute(
+        "position",
+        new THREE.Float32BufferAttribute(
+          tubePositions,
+          3
+        )
+      );
+
+      const tubeMaterial =
+        new THREE.MeshBasicMaterial({
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0.2,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+        });
+
+      group.add(
+        new THREE.Mesh(
+          tubeGeometry,
+          tubeMaterial
+        )
+      );
+
+      const lineGeometry =
+        new THREE.BufferGeometry();
+
+      lineGeometry.setAttribute(
+        "position",
+        new THREE.Float32BufferAttribute(
+          linePositions,
+          3
+        )
+      );
+
+      const lineMaterial =
+        new THREE.LineBasicMaterial({
+          color: 0x000000,
+          transparent: true,
+          opacity: 0.5,
+          depthWrite: false,
+        });
+
+      group.add(
+        new THREE.LineSegments(
+          lineGeometry,
+          lineMaterial
+        )
+      );
+
+      /*
+       * The exact renderer/scene reference will be connected
+       * once the 0.6.3 editor instance is exposed.
+       */
+
+      if (rr.editor.scene) {
+        rr.editor.scene.add(group);
+        rr.trailGroup = group;
+      }
+
+      console.log(
+        "[Route Recorder] Trail rendered:",
+        frames.length,
+        "frames"
+      );
+    };
+
+
+    /*
+     * ============================================================
+     * TEMPORARY TEST API
+     * ============================================================
+     *
+     * These are deliberately global so we can verify the
+     * renderer independently of the 0.6.3 car hook.
+     */
+
+    globalThis.__routeRecorder.testTrail = () => {
+      const rr =
+        globalThis.__routeRecorder;
+
+      rr.samples = [];
+
+      for (let i = 0; i < 40; i++) {
+        rr.samples.push({
+          x: i * 0.8,
+          y: 0,
+          z: Math.sin(i * 0.35) * 5,
+          quaternion: {
+            x: 0,
+            y: 0,
+            z: 0,
+            w: 1,
+          },
+        });
+      }
+
+      rr.renderTrail();
+    };
+
 
     console.log(
       "[Route Recorder] 0.6.3 initialized"
@@ -169,4 +398,6 @@ class RouteRecorder extends PolyMod {
   };
 }
 
-export let polyMod = new RouteRecorder();
+export let polyMod =
+  new RouteRecorder();
+```
