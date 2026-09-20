@@ -7,27 +7,54 @@ class RouteRecorder extends PolyMod {
   init = (pml) => {
     pml.registerChunkMixin("112", {
       type: MixinType.INSERT,
+
+      // 0.6.3 equivalent of the working 0.6.2 token
       token: "G.appendChild(C));",
+
       func: `
         {
-          const routeRecorderButton =
-            document.createElement("button");
+          console.log("[Route Recorder] MIXIN HIT");
 
-          routeRecorderButton.className = "button";
-          routeRecorderButton.textContent = "Route Recorder";
+          const button = document.createElement("button");
 
-          const editorUI =
-            document.querySelector(".editor-ui");
+          button.className = "button";
 
-          if (editorUI) {
-            editorUI.appendChild(routeRecorderButton);
-          } else {
-            document.body.appendChild(routeRecorderButton);
-          }
+          let enabled = true;
 
-          console.log(
-            "[Route Recorder] BUTTON CREATED"
-          );
+          const updateButton = () => {
+            const icon =
+              "data:image/svg+xml;charset=utf-8," +
+              encodeURIComponent(
+                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">' +
+                  '<circle cx="12" cy="12" r="8" fill="none" stroke="white" stroke-width="2.5"/>' +
+                  '<circle cx="12" cy="12" r="4" fill="white"/>' +
+                "</svg>"
+              );
+
+            button.innerHTML =
+              '<img class="button-icon" src="' +
+              icon +
+              '"> ' +
+              (enabled ? "Enabled" : "Disabled");
+          };
+
+          button.addEventListener("click", () => {
+            enabled = !enabled;
+
+            updateButton();
+
+            console.log(
+              "[Route Recorder] Button:",
+              enabled ? "Enabled" : "Disabled"
+            );
+          });
+
+          // Use the SAME parent that PolyTrack itself uses.
+          G.appendChild(button);
+
+          updateButton();
+
+          console.log("[Route Recorder] BUTTON CREATED");
         }
       `,
     });
