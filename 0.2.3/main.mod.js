@@ -4,17 +4,22 @@ import {
 } from "https://cdn.polymodloader.com/cb/PolyTrackMods/PolyModLoader/0.6.3/PolyTypes.js";
 
 const recorder = {
-  enabled: true,
-  recording: false,
+  // Recording is ALWAYS enabled.
+  recording: true,
+
+  // Trail visibility is controlled by the button.
+  visible: true,
+
   samples: [],
   carOwner: null,
+  lastPosition: null,
 
   trail: null,
   scene: null,
   THREE: null,
 
   spacing: 0.75,
-  lastPosition: null,
+  button: null,
 };
 
 globalThis.__routeRecorder = recorder;
@@ -31,42 +36,55 @@ function distance(a, b) {
   );
 }
 
-function clearTrail() {
+function hideTrail() {
+  const rr = globalThis.__routeRecorder;
+
+  if (rr.trail && rr.scene) {
+    rr.scene.remove(rr.trail);
+  }
+}
+
+function showTrail() {
   const rr = globalThis.__routeRecorder;
 
   if (!rr.trail || !rr.scene) {
     return;
   }
 
-  rr.scene.remove(rr.trail);
+  rr.scene.add(rr.trail);
+}
 
-  if (rr.trail.traverse) {
-    rr.trail.traverse((object) => {
-      if (object.geometry) {
-        object.geometry.dispose();
-      }
+function updateButton() {
+  const rr = globalThis.__routeRecorder;
 
-      if (object.material) {
-        if (Array.isArray(object.material)) {
-          for (const material of object.material) {
-            material.dispose();
-          }
-        } else {
-          object.material.dispose();
-        }
-      }
-    });
+  if (!rr.button) {
+    return;
   }
 
-  rr.trail = null;
+  const icon =
+    "data:image/svg+xml;charset=utf-8," +
+    encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">' +
+        '<circle cx="12" cy="12" r="8" fill="none" stroke="white" stroke-width="2.5"/>' +
+        '<circle cx="12" cy="12" r="4" fill="white"/>' +
+      "</svg>"
+    );
+
+  rr.button.innerHTML =
+    '<img class="button-icon" src="' +
+    icon +
+    '"> ' +
+    (rr.visible
+      ? "Disable trail"
+      : "Enable trail");
 }
 
 function drawTrail() {
   const rr = globalThis.__routeRecorder;
 
-  if (!rr.scene || !rr.THREE) {
+  if (!rr.THREE || !rr.scene) {
     console.log(
-      "[Route Recorder] Cannot draw trail: scene or THREE missing."
+      "[Route Recorder] Scene/THREE not ready."
     );
     return;
   }
@@ -79,16 +97,28 @@ function drawTrail() {
     return;
   }
 
-  clearTrail();
-
   const THREE = rr.THREE;
 
+  if (rr.trail) {
+    hideTrail();
+
+    rr.trail.traverse((object) => {
+      if (object.geometry) {
+        object.geometry.dispose();
+      }
+
+      if (object.material) {
+        object.material.dispose();
+      }
+    });
+
+    rr.trail = null;
+  }
+
   /*
-   * Approximate PolyTrack car collision box.
-   *
-   * CWCTrack's trail is based on the car hitbox rather
-   * than simply drawing a centerline. We do the same idea
-   * here with a swept box.
+   * Approximate car hitbox.
+   * The important part is that every recorded
+   * position gets a rotated 3D box.
    */
   const box = [
     new THREE.Vector3(-0.75, -0.35, -1.35),
@@ -124,16 +154,6 @@ function drawTrail() {
   for (let i = 0; i < rr.samples.length; i++) {
     const sample = rr.samples[i];
 
-    const quaternion =
-      sample.quaternion
-        ? new THREE.Quaternion(
-            sample.quaternion.x,
-            sample.quaternion.y,
-            sample.quaternion.z,
-            sample.quaternion.w
-          )
-        : new THREE.Quaternion();
-
     const center =
       new THREE.Vector3(
         sample.x,
@@ -141,79 +161,80 @@ function drawTrail() {
         sample.z
       );
 
-    const transformed = [];
+    const quaternion =
+      new THREE.Quaternion(
+        sample.quaternion?.x ?? 0,
+        sample.quaternion?.y ?? 0,
+        sample.quaternion?.z ?? 0,
+        sample.quaternion?.w ?? 1
+      );
 
-    for (const vertex of box) {
+    const current = box.map((vertex) => {
       const point = vertex.clone();
 
       point.applyQuaternion(quaternion);
       point.add(center);
 
-      transformed.push(point);
-    }
+      return point;
+    });
 
-    /*
-     * Draw the hitbox at this sample.
-     */
     for (const [a, b] of edges) {
       positions.push(
-        transformed[a].x,
-        transformed[a].y,
-        transformed[a].z,
+        current[a].x,
+        current[a].y,
+        current[a].z,
 
-        transformed[b].x,
-        transformed[b].y,
-        transformed[b].z
+        current[b].x,
+        current[b].y,
+        current[b].z
       );
     }
 
+    if (i + 1 >= rr.samples.length) {
+      continue;
+    }
+
+    const nextSample =
+      rr.samples[i + 1];
+
+    const nextCenter =
+      new THREE.Vector3(
+        nextSample.x,
+        nextSample.y,
+        nextSample.z
+      );
+
+    const nextQuaternion =
+      new THREE.Quaternion(
+        nextSample.quaternion?.x ?? 0,
+        nextSample.quaternion?.y ?? 0,
+        nextSample.quaternion?.z ?? 0,
+        nextSample.quaternion?.w ?? 1
+      );
+
+    const next = box.map((vertex) => {
+      const point = vertex.clone();
+
+      point.applyQuaternion(nextQuaternion);
+      point.add(nextCenter);
+
+      return point;
+    });
+
     /*
-     * Connect this hitbox to the next one.
-     * This produces the swept 3D trail instead of
-     * disconnected boxes.
+     * Sweep the hitbox between this frame
+     * and the next frame.
      */
-    if (i < rr.samples.length - 1) {
-      const next = rr.samples[i + 1];
+    for (let j = 0; j < box.length; j++) {
+      positions.push(
+        current[j].x,
+        current[j].y,
+        current[j].z,
 
-      const nextQuaternion =
-        next.quaternion
-          ? new THREE.Quaternion(
-              next.quaternion.x,
-              next.quaternion.y,
-              next.quaternion.z,
-              next.quaternion.w
-            )
-          : new THREE.Quaternion();
-
-      const nextCenter =
-        new THREE.Vector3(
-          next.x,
-          next.y,
-          next.z
-        );
-
-      const nextTransformed = [];
-
-      for (const vertex of box) {
-        const point = vertex.clone();
-
-        point.applyQuaternion(nextQuaternion);
-        point.add(nextCenter);
-
-        nextTransformed.push(point);
-      }
-
-      for (const [a, b] of edges) {
-        positions.push(
-          transformed[a].x,
-          transformed[a].y,
-          transformed[a].z,
-
-          nextTransformed[a].x,
-          nextTransformed[a].y,
-          nextTransformed[a].z
-        );
-      }
+        next[j].x,
+        next[j].y,
+        next[j].z
+      );
     }
   }
 
@@ -232,26 +253,26 @@ function drawTrail() {
     new THREE.LineBasicMaterial({
       color: 0xffffff,
       transparent: true,
-      opacity: 0.8,
+      opacity: 0.85,
       depthWrite: false,
     });
 
-  const line =
+  rr.trail =
     new THREE.LineSegments(
       geometry,
       material
     );
 
-  line.renderOrder = 999;
+  rr.trail.renderOrder = 999;
 
-  rr.scene.add(line);
-
-  rr.trail = line;
+  if (rr.visible) {
+    rr.scene.add(rr.trail);
+  }
 
   console.log(
-    "[Route Recorder] 3D trail drawn:",
+    "[Route Recorder] Trail created from",
     rr.samples.length,
-    "samples"
+    "samples."
   );
 }
 
@@ -263,11 +284,13 @@ class RouteRecorder extends PolyMod {
      */
     pml.registerChunkMixin("112", {
       type: MixinType.INSERT,
+
       token: "G.appendChild(C));",
 
       func: `
         {
-          const rr = globalThis.__routeRecorder;
+          const rr =
+            globalThis.__routeRecorder;
 
           console.log(
             "[Route Recorder] EDITOR MIXIN HIT"
@@ -280,8 +303,7 @@ class RouteRecorder extends PolyMod {
             null;
 
           /*
-           * PolyTrack's editor chunk already imports
-           * Three.js as module "w".
+           * The editor chunk imports Three.js as "w".
            */
           if (typeof w !== "undefined") {
             rr.THREE = w;
@@ -292,37 +314,26 @@ class RouteRecorder extends PolyMod {
 
           button.className = "button";
 
-          const updateButton = () => {
-            const icon =
-              "data:image/svg+xml;charset=utf-8," +
-              encodeURIComponent(
-                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">' +
-                  '<circle cx="12" cy="12" r="8" fill="none" stroke="white" stroke-width="2.5"/>' +
-                  '<circle cx="12" cy="12" r="4" fill="white"/>' +
-                "</svg>"
-              );
-
-            button.innerHTML =
-              '<img class="button-icon" src="' +
-              icon +
-              '"> ' +
-              (rr.enabled
-                ? "Enabled"
-                : "Disabled");
-          };
+          rr.button = button;
 
           button.addEventListener(
             "click",
             () => {
-              rr.enabled = !rr.enabled;
+              rr.visible = !rr.visible;
+
+              if (rr.visible) {
+                showTrail();
+              } else {
+                hideTrail();
+              }
 
               updateButton();
 
               console.log(
-                "[Route Recorder] Recording:",
-                rr.enabled
-                  ? "Enabled"
-                  : "Disabled"
+                "[Route Recorder] Trail:",
+                rr.visible
+                  ? "Visible"
+                  : "Hidden"
               );
             }
           );
@@ -331,10 +342,6 @@ class RouteRecorder extends PolyMod {
 
           updateButton();
 
-          /*
-           * Give the editor a chance to finish
-           * constructing its scene.
-           */
           setTimeout(() => {
             const r =
               globalThis.__routeRecorder;
@@ -345,16 +352,12 @@ class RouteRecorder extends PolyMod {
               this.editorScene ||
               r.scene;
 
-            if (
-              typeof w !== "undefined"
-            ) {
+            if (typeof w !== "undefined") {
               r.THREE = w;
             }
 
-            if (
-              r.samples.length >= 2
-            ) {
-              r.drawTrail();
+            if (r.samples.length >= 2) {
+              drawTrail();
             }
 
             console.log(
@@ -370,16 +373,10 @@ class RouteRecorder extends PolyMod {
     });
 
     /*
-     * Expose trail drawing to the injected code.
-     */
-    globalThis.__routeRecorder.drawTrail =
-      drawTrail;
-
-    /*
-     * CAR STATE HOOK
+     * Recording hook.
      *
-     * This is the car-state setter pattern
-     * verified in the earlier PolyTrack bundle.
+     * Recording is intentionally independent
+     * from the button's visibility state.
      */
     pml.registerGlobalMixin({
       type: MixinType.INSERT,
@@ -394,20 +391,14 @@ class RouteRecorder extends PolyMod {
 
             if (
               !rr ||
-              !rr.enabled ||
+              !rr.recording ||
               !e ||
               !e.position
             ) {
               return;
             }
 
-            /*
-             * The first object receiving car states
-             * becomes the player's car.
-             */
-            if (
-              rr.carOwner === null
-            ) {
+            if (rr.carOwner === null) {
               rr.carOwner = this;
 
               console.log(
@@ -415,9 +406,7 @@ class RouteRecorder extends PolyMod {
               );
             }
 
-            if (
-              rr.carOwner !== this
-            ) {
+            if (rr.carOwner !== this) {
               return;
             }
 
@@ -429,11 +418,6 @@ class RouteRecorder extends PolyMod {
               z: position.z,
             };
 
-            /*
-             * Only save a sample after the car has
-             * moved enough. This is the same basic
-             * spacing concept used by CWCTrack.
-             */
             if (
               rr.lastPosition &&
               distance(
@@ -486,29 +470,8 @@ class RouteRecorder extends PolyMod {
       `,
     });
 
-    /*
-     * Debug / control functions.
-     */
-    globalThis.__routeRecorder.clear =
-      () => {
-        const rr =
-          globalThis.__routeRecorder;
-
-        rr.samples = [];
-        rr.carOwner = null;
-        rr.lastPosition = null;
-
-        console.log(
-          "[Route Recorder] Samples cleared"
-        );
-      };
-
-    globalThis.__routeRecorder.getSamples =
-      () => {
-        return globalThis
-          .__routeRecorder
-          .samples;
-      };
+    globalThis.__routeRecorder.drawTrail =
+      drawTrail;
 
     console.log(
       "[Route Recorder] 0.6.3 initialized"
